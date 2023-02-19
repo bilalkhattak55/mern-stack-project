@@ -1,0 +1,462 @@
+1---------------------basic
+const express = require("express");
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+
+const app = express();
+dotenv.config();
+
+// middle wares
+
+// connections    mongoose password="0314bilal";
+mongoose.connect("")
+
+app.listen(5000, () => {
+    console.log("listening to port 5000")
+})
+
+
+2-------------------
+mongoose.connect(
+    `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.4nfslkb.mongodb.net/?retryWrites=true&w=majority`
+)
+.then(()=> {
+    app.listen(5000, () => {
+        console.log("connection successful & listening to port 5000")
+    })
+})
+.catch((err) => {
+    console.log(err)
+})
+
+
+
+
+3---------------------make three folders 1.models 2-controllers 3-routing
+
+
+
+4--------------------make schema ;of user in user.js
+import {Schema} from "mongoose";
+
+const userSchema = new Schema({
+    name: {
+        type: String,
+        required: true,
+        },
+
+    email: {
+            type : String,
+            required: true,
+            unique:true,
+        },
+    password:{
+        type: String,
+        required:true,
+        minLength:6,
+    },
+    posts: [ {type:String} ]
+    
+});
+
+export default model("user", userSchema);
+//users are stored in mongoDB as plural
+
+
+
+5--------------------------------------make user-router.js in routeing folder;
+import {Router} from "express";
+
+const userRouter = Router();
+
+userRouter.get('/');
+
+6--------------------------------------make user-controller.js in controllers folder;
+import User from "../models/User";
+
+export const getAllUsers = async (req, res) => {
+    let users;
+    try {
+        users = await User.find();
+    }catch (err) {
+        return console.log(err)
+    }
+
+    if(!users) {
+        return res.status(500).json({message: "Unexpected error Occured"})
+    }
+
+    return res.status(200).json( {users} );
+};
+
+
+7--------------------------export userRouter;
+export default userRouter;
+
+
+
+8-----------------------------add post route;
+userRouter.post('/signup', signup);
+
+9----------------------------add controller for post;
+//post method;
+export const signup = async (req, res, next) => {
+    const { name, email, password } = req.body;
+    if (!name && name.trim() === "" && !email && email.trim() === "" && !password && password.trim() === "" && password.length < 6) {
+        return res.status(422).json({
+            message: "Invalid data"
+        });
+    }
+
+    let user;
+    try {
+        user = new User({email, name, password});
+        await user.save();
+    }
+    catch(err) {
+        return console.log(err)
+    }
+
+    if (!user) {
+        return res.status(500).json({ message: "Unexpected Error occured"})
+    }
+
+    return res.status(201).json({user})
+}
+
+
+
+10-------------------convert data into json format;
+app.use(express.json());
+
+
+11---------------------check in postman;
+
+
+12---------------------make a login router
+userRouter.post('/login', login)
+
+13-------------------make controller for login;
+//login;
+export const login = async (req, res, next) => {
+    const { email, password } = req.body;
+    if (!email && email.trim() === "" && !password && password.trim() === "" && password.length < 6) {
+        return res.status(422).json({
+            message: "Invalid data"
+        });
+    }
+
+    let existingUser;
+    try {
+      existingUser = await User.findOne({email})
+    }catch(err) {
+        console.log(err)
+    }
+    if (!existingUser) {
+        return res.status(404).json({message: "No user found"})
+    }
+    const isPasswordCorrect = compareSync(password, existingUser.password);
+
+    if(!isPasswordCorrect) {
+        return res.status(400).json({message: "incorrect password"})
+    }
+
+
+    return res.status(200).json({id : existingUser._id, message: "login successfully"})
+}
+
+
+14--------------------make a Post.js for Posts schema;
+import mongoose from "mongoose"
+
+const postSchema = new mongoose.Schema({
+   title: {
+    type: String,
+    required: true
+   },
+   description: {
+    type: String,
+    required: true
+   },
+   image : {
+    type : String,
+    required : true
+   },
+   location : {
+    type: String,
+    required: true
+   },
+   date: {
+    type: Date,
+    required: true
+   },
+   user: {
+    type : String,
+    required: true
+   }
+});
+
+export default mongoose.model("Post", postSchema);
+
+
+
+15-------------------------make a post-routes.js in routing folder;
+import { Router } from "express";
+import { getAllPosts } from "../controllers/post-controller";
+
+const postRouter = Router();
+
+postRouter.get('/', getAllPosts);
+
+export default postRouter;
+
+
+
+16-------------------------make a post-controller.js in controllers folder;
+export const getAllPosts = async (req, res ) => {
+    let posts;
+    try {
+        posts = await Post.find();
+
+    } catch(err) {
+        return console.log(err)
+    }
+
+    if(!posts) {
+        return res.status(500).json({message: "Unexpected error occured"})
+    }
+
+    return res.status(200).json({posts});
+}
+
+
+17------------------------make a middleware in app.js;
+app.use('/posts', postRouter);
+
+
+18--------------------------make a post router for posts;
+postRouter.post('/', addPost);
+
+
+
+19--------------------------make a controller for post;
+// post 
+export const addPost = async (req, res) => {
+    const { title, description, location, date, image, user } = req.body;
+
+    if (!title &&
+        title.trim() === "" &&
+        !description &&
+        description.trim() === "" &&
+        !location &&
+        location.trim() === "" &&
+        !date &&
+        !image &&
+        !user &&
+        image.trim() === "") {
+        res.status(422).json({ message: "invalid data" })
+    }
+
+
+    let post;
+    try {
+        post = new Post({
+            title,
+            description,
+            image,
+            location,
+            date: new Date(`${date}`),
+            user
+        });
+        post = await post.save();
+
+    } catch (err) {
+        console.log(err)
+    }
+
+    if(!post) {
+        return res.status(500).json({message: "unexpectedError occured"})
+    } 
+
+    return res.status(201).json({post})
+
+};
+
+
+20-------------------------check post data in postman;
+
+
+21---------------------------get post by id; make route in routing foder;
+postRouter.get('/:id', getPostById);
+
+
+22-----------------------define controller for getPostById;
+//id
+export const getPostById = async (req, res) => {
+    const id = req.params.id;
+
+    let post;
+    try {
+           post = await Post.findById(id);
+    }catch(err) {
+        return console.log(err)
+    }
+
+    if(!post) {
+        return res.status(404).json({message: "no post found"});
+    }
+
+
+    return res.status(200).json({post})
+}
+
+
+23--------------------update post;
+
+24-------------------------make router for update post functioncalty;
+postRouter.put('/:id', updatePost);
+
+
+25---------------------------make controller for updatepost;
+// update post;
+export const updatePost = async (req, res) => {
+    const id = req.params.id;
+    const { title, description, location, date, image } = req.body;
+
+    if (!title &&
+        title.trim() === "" &&
+        !description &&
+        description.trim() === "" &&
+        !location &&
+        location.trim() === "" &&
+        !date &&
+        !image &&
+        image.trim() === "") {
+        res.status(422).json({ message: "invalid data" })
+    };
+
+    let post;
+    try {
+    post = await Post.findByIdAndUpdate(id, {
+        title, description, image, date: new Date( `${date}`),
+        location
+    });
+    // we don't need to save data in update because mongodb itself save it in update functionalty;
+    }catch (err){
+        return console.log(err)
+    }
+
+    if(!post) {
+        return res.status(500).json({message: "unable to update"});
+    };
+
+
+    return res.status(200).json({message: "updated successfully"})
+
+}
+
+
+
+
+26-----------------------------now we will create deleteting the post functionalty;
+postRouter.delete('/:id', deletePost);
+
+
+27----------------------------make controller for delete;
+//delete the post;
+export const deletePost = async (req, res) => {
+    const id = req.params.id;
+    let post;
+
+    try {
+      post = await Post.findByIdAndRemove(id)
+    }catch(err) {
+        console.log(err)
+    }
+
+    if(!post) {
+        return res.status(500).json({message: "unable to delete"});
+    }
+
+
+    return res.status(200).json({message: "deleted successfuly"});
+
+}
+
+
+
+
+28---------------------------make relation between Post.js and User.js (Schemas);
+//User.js;
+posts: [ {type: String} ];
+to
+posts: [ {type: mongoose.Types.ObjectId, ref: "Post"} ]  
+
+
+
+29--------------------------in Post.js make these changes;
+ user: {
+    type : String ,
+    required: true
+   }
+   
+   to
+
+ user: {
+    type : mongoose.Types.ObjectId,
+    ref: "User",
+    required: true
+   }
+
+
+30--------------------------made some changes in post-controller.js;
+       // these code edded at the end time
+    let existingUser;
+    try {
+        existingUser = await User.findById(user);
+    } catch(err) {
+       return console.log(err)
+    }
+
+    if(!existingUser) {
+      return res.status(404).json({message: "user not found"});
+    }
+     // above code edded at the end time
+
+
+
+31--------------------------------session for getting user id from array;
+//we need to save post in user post array;
+        //made the following changes at last
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        existingUser.posts.push(post);
+        await existingUser.save({ session });
+        post = await post.save({ session });
+        session.commitTransaction()
+
+        //made the following changes at last
+
+
+
+32-------------------------------go to postman and check the api;
+
+
+33--------------------------------now we have to deleted the post from array;
+//make changes at the last
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        post = await Post.findById(id).populate("user");
+        post.user.posts.pull(post);
+        await post.user.save({session});
+        post = await Post.findByIdAndRemove(id);
+        session.commitTransaction();
+        //make changes at the last
+
+
+        34-------api completed;
+
+
+
+
+
